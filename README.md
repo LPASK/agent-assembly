@@ -4,6 +4,8 @@
 
 Your agent should know you — across every project.
 
+[中文版](README.zh-CN.md)
+
 ## The Problem
 
 Different projects need different sides of you. A coding project needs your technical background. A research project needs your reading interests and cognitive patterns. But your agent starts every session as a stranger — unless you copy-paste the same context everywhere.
