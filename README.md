@@ -144,7 +144,7 @@ bash tests/run.sh
 ### Requirements
 
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) or compatible agent CLI
-- bash, jq
+- bash or zsh, jq
 - macOS or Linux
 
 ## License

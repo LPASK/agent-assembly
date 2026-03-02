@@ -142,7 +142,7 @@ bash tests/run.sh
 ### 环境要求
 
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) 或兼容的 agent CLI
-- bash、jq
+- bash 或 zsh、jq
 - macOS 或 Linux
 
 ## 许可证
