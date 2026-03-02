@@ -2,42 +2,78 @@
 
 [![CI](https://github.com/LPASK/agent-assembly/actions/workflows/ci.yml/badge.svg)](https://github.com/LPASK/agent-assembly/actions/workflows/ci.yml)
 
-A build system for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) and compatible agent CLIs. Assemble per-project agent context from modular profile components, and maintain a cross-project memory layer.
+Your agent should know you — across every project.
 
 ## The Problem
 
-As you use Claude Code across more projects, the global user-level config becomes increasingly awkward:
+Different projects need different sides of you. A coding project needs your technical background. A research project needs your reading interests and cognitive patterns. But your agent starts every session as a stranger — unless you copy-paste the same context everywhere.
 
-1. **Different projects need different sides of you.** A coding project needs your technical background and style preferences. A research project needs your reading interests and cognitive patterns. A single global config either carries too much noise or not enough context.
-2. **Some things belong to the person, not the project.** Goals, time allocation, periodic reviews, personal growth patterns — these cut across projects. But Claude Code's memory model is per-project: each agent only sees what happened in its own directory.
+Meanwhile, some things belong to *you*, not to any project. Goals, growth patterns, periodic reviews — these cut across repositories. Today they either live nowhere or get duplicated everywhere.
 
 ## How It Works
 
-Two ideas:
-
-1. **Assemble, don't broadcast.** Break your profile into modules (background, technical skills, cognitive patterns, goals, ...). Each project's launcher picks the modules it needs — no more, no less. The launcher *is* the configuration.
-2. **A cross-project memory layer.** Maintain a shared `memory/` directory. Personal reflections, goal tracking, weekly reviews, and anything that isn't project-specific accumulates here, accessible from any session via `--add-dir`.
-
 ```
-agent-assembly/
-├── launchers/           # Per-project launch scripts
-│   ├── lib.sh           # Pipeline library (5 functions)
-│   └── example-mac-claude.sh
-├── modules/             # Profile components (source of truth)
-│   ├── core-behavior.md      # Agent behavior (sample)
-│   ├── profile-technical.md  # Technical background (sample)
-│   ├── profile-goals.md      # Goals tracking (sample)
-│   ├── memory-system.md      # Memory rules (sample)
-│   └── operating-principles.md  # (sample)
-├── hooks/               # Hook scripts injected into sessions
-│   └── prompt-guard.sh  # Action check + memory alarm
-├── memory/              # Cross-project session logs
-├── tests/               # Regression tests
-├── SPEC.md              # System specification
-└── CLAUDE.md            # Agent entry point
+                        agent-assembly
+                       ┌──────────────┐
+                       │   modules/   │
+                       │  ┌────────┐  │
+                       │  │ profile │  │
+                       │  │ goals   │  │
+                       │  │ memory  │  │
+                       │  │ hooks   │  │
+                       │  └────────┘  │
+                       └──────┬───────┘
+                              │
+               ┌──────────────┼──────────────┐
+               ▼              ▼              ▼
+          project-A      project-B      project-C
+         (all modules)  (profile only)  (profile+goals)
 ```
 
-## Pipeline
+- **Modular profile.** Break yourself into components — technical background, goals, cognitive patterns, behavior rules. Each project assembles only the pieces it needs.
+- **Launcher = configuration.** A short bash script per project. It picks the modules, runs the pipeline, launches the agent. No YAML, no central config.
+- **Shared memory layer.** A `memory/` directory accessible from any session. Personal reflections and cross-project context accumulate here.
+
+## Get Started
+
+```bash
+git clone https://github.com/LPASK/agent-assembly.git ~/agent-assembly
+cd ~/agent-assembly
+```
+
+Then launch your agent CLI here and tell it to set things up:
+
+```bash
+claude   # or your preferred agent CLI
+```
+
+> Set up agent-assembly for me. Read CLAUDE.md and SPEC.md to understand the system,
+> then walk me through writing my modules and creating my first launcher.
+
+Your agent will read the docs, interview you about your background, and generate everything. You just answer questions.
+
+### Agent Setup Guide
+
+If you're an agent helping a human set up this project, here's the sequence:
+
+1. **Read** `CLAUDE.md` and `SPEC.md` to understand the full system.
+2. **Rewrite modules.** The files in `modules/` are samples with fake data. Interview the user about their background, goals, and preferences, then rewrite each module with real information.
+3. **Create a launcher.** Copy `launchers/example-mac-claude.sh` to a new file named after the user's first project. Set `TARGET` to their project path and select the modules they need. See the Pipeline section below for what each function does.
+4. **Test it.** Run `bash tests/run.sh` to verify everything works.
+5. **Launch.** Run the new launcher script to start an assembled session.
+
+---
+
+*Something not working?* [Open an issue.](https://github.com/LPASK/agent-assembly/issues)
+*Finding it useful?* [Star the repo](https://github.com/LPASK/agent-assembly) — it helps others find it.
+
+---
+
+## Reference
+
+Everything below is reference material for developers and agents.
+
+### Pipeline
 
 Every launcher runs the same pipeline:
 
@@ -55,71 +91,7 @@ assemble_modules → assemble_hooks → assemble_skills → ensure_gitignore →
 
 All generated artifacts are gitignored in the target project. The target project's own `CLAUDE.md` is untouched.
 
-## Quick Start
-
-### 1. Clone
-
-```bash
-git clone https://github.com/LPASK/agent-assembly.git ~/agent-assembly
-cd ~/agent-assembly
-```
-
-### 2. Write your modules
-
-The files in `modules/` are **samples with fake data**. They demonstrate the format and structure — don't use them as-is. Have your agent rewrite each file with your real information, or write them yourself.
-
-- `profile-technical.md` — technical background, skills, priorities
-- `profile-goals.md` — active commitments and progress tracking
-- `core-behavior.md` — how you want the agent to think and act
-- `memory-system.md` — rules for what gets recorded and how
-- `operating-principles.md` — general working principles
-
-Add more modules as needed (e.g. `profile-cognitive.md`, `profile-health.md`). Each module is a self-contained markdown file — different projects can assemble different subsets.
-
-### 3. Create a launcher
-
-```bash
-cp launchers/example-mac-claude.sh launchers/my-project.sh
-```
-
-Edit it — set `TARGET` to your project path, choose which modules to assemble:
-
-```bash
-#!/bin/bash
-source "$(dirname "$0")/lib.sh"
-
-CLI="${CLI:-claude}"
-TARGET="$HOME/my-project"
-
-assemble_modules "$TARGET" \
-  core-behavior.md \
-  profile-technical.md \
-  profile-goals.md \
-  memory-system.md operating-principles.md
-
-assemble_hooks "$TARGET" prompt-guard.sh
-ensure_gitignore "$TARGET"
-launch "$CLI" "$TARGET"
-```
-
-A different project might only need a subset:
-
-```bash
-assemble_modules "$TARGET" \
-  core-behavior.md \
-  profile-technical.md   # just the basics — no goals, no memory system
-```
-
-### 4. Launch
-
-```bash
-bash ~/agent-assembly/launchers/my-project.sh
-
-# Override the CLI binary:
-CLI=claude bash ~/agent-assembly/launchers/my-project.sh
-```
-
-## Design Decisions
+### Design Decisions
 
 **The launcher is the configuration.** No YAML config files. Each launcher is a short bash script that calls pipeline functions with the modules it needs. Adding a project = copying a launcher and changing the target path and module list.
 
@@ -131,7 +103,7 @@ CLI=claude bash ~/agent-assembly/launchers/my-project.sh
 
 **Generated artifacts are ephemeral.** `CLAUDE.local.md`, `.claude/settings.local.json`, and `.claude/skills/` in the target project are all generated, gitignored, and overwritten on every launch.
 
-## Extending
+### Extending
 
 **New module**: Create `modules/my-module.md`, add the filename to your launcher's `assemble_modules` call.
 
@@ -143,7 +115,23 @@ CLI=claude bash ~/agent-assembly/launchers/my-project.sh
 
 See [SPEC.md](SPEC.md) for the complete specification.
 
-## Testing
+### Directory Structure
+
+```
+agent-assembly/
+├── launchers/           # Per-project launch scripts
+│   ├── lib.sh           # Pipeline library (5 functions)
+│   └── example-mac-claude.sh
+├── modules/             # Profile components (source of truth)
+├── hooks/               # Hook scripts injected into sessions
+│   └── prompt-guard.sh  # Action check + memory alarm
+├── memory/              # Cross-project session logs
+├── tests/               # Regression tests
+├── SPEC.md              # System specification
+└── CLAUDE.md            # Agent entry point
+```
+
+### Testing
 
 ```bash
 bash tests/run.sh
@@ -151,7 +139,7 @@ bash tests/run.sh
 
 21 tests covering module assembly, hook generation, gitignore management, hook behavior, and documentation consistency. CI runs on both Ubuntu and macOS.
 
-## Requirements
+### Requirements
 
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) or compatible agent CLI
 - bash, jq
